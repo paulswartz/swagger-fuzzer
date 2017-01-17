@@ -74,7 +74,7 @@ def get_request(data, spec, spec_host, settings):
 
     body_params = _get_filtered_parameter(endpoint, 'body', common_parameters, spec)
     if body_params:
-        body_args = data.draw(body_params['body'])
+        body_args = data.draw(st.fixed_dictionaries(body_params))
     else:
         body_args = None
 
@@ -97,7 +97,7 @@ def get_request(data, spec, spec_host, settings):
         elif request_body_format == 'application/json':
             request_data = json.dumps(body_args, cls=CustomJsonEncoder)
         elif request_body_format == 'application/xml':
-            pass
+            raise NotImplementedError(request_body_format)
             # TODO Implement XML
         else:
             raise Exception(request_body_format)
@@ -177,6 +177,8 @@ class CustomTransformation(object):
                 if obj['items'].get('enum'):
                     return st.lists(elements=st.sampled_from(obj['items']['enum']))
                 elif obj['items'].get('type'):
+                    if obj['items']['type'] == 'object':
+                        return st.lists(elements=st.fixed_dictionaries({}))
                     return st.lists(elements=SWAGGER_FORMAT_MAPPING[obj['items']['type']])
                 elif obj['items'].get('$ref'):
                     schema = self.get_ref(obj['items']['$ref'], self.spec)
@@ -184,7 +186,7 @@ class CustomTransformation(object):
                 raise Exception('array', obj)
             elif parameter_type == 'object':
                 properties = {}
-                for property_name, property_ in obj['properties'].items():
+                for property_name, property_ in obj.get('properties', {}).items():
                     properties[property_name] = self.transform(property_)
                 return st.fixed_dictionaries(properties)
             elif parameter_schema:
