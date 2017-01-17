@@ -45,8 +45,8 @@ def get_item_path_acceptable_format(path_item, spec):
     return spec.get('consumes')
 
 
-def _get_filtered_parameter(path_item, in_, spec):
-    parameters = path_item.get('parameters')
+def _get_filtered_parameter(path_item, in_, common_parameters, spec):
+    parameters = path_item.get('parameters') + common_parameters
     filtered_params = [p for p in parameters if p['in'] == in_]
     non_converted_params = {p['name']: p for p in filtered_params}
     return CustomTransformation(get_ref, spec).transform(non_converted_params)
@@ -56,16 +56,23 @@ def get_request(data, spec, spec_host, settings):
     endpoint_path = data.draw(st.sampled_from(spec['paths'].keys()))
     endpoint = spec['paths'][endpoint_path]
 
-    method_name = data.draw(st.sampled_from(endpoint.keys()))
+    methods = set(endpoint.keys())
+    if 'parameters' in methods:
+        methods.remove('parameters')
+        common_parameters = endpoint['parameters']
+    else:
+        common_parameters = []
+
+    method_name = data.draw(st.sampled_from(methods))
     endpoint = endpoint[method_name]
 
-    path_params = _get_filtered_parameter(endpoint, 'path', spec)
+    path_params = _get_filtered_parameter(endpoint, 'path', common_parameters, spec)
     path_args = data.draw(st.fixed_dictionaries(path_params))
 
-    query_params = _get_filtered_parameter(endpoint, 'query', spec)
+    query_params = _get_filtered_parameter(endpoint, 'query', common_parameters, spec)
     query_args = data.draw(st.fixed_dictionaries(query_params))
 
-    body_params = _get_filtered_parameter(endpoint, 'body', spec)
+    body_params = _get_filtered_parameter(endpoint, 'body', common_parameters, spec)
     if body_params:
         body_args = data.draw(body_params['body'])
     else:
