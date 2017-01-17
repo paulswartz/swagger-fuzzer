@@ -21,12 +21,18 @@ parser.add_argument('-s', '--standard-http-code', dest='http_code',
                     action='append', type=int,
                     help='Standards http codes, no need to declare them in '
                          'swagger spec, default: 200, 404, 405')
+parser.add_argument('-H', '--header', dest='headers',
+                    action='append', type=lambda s: s.split(':', 1),
+                    default=[],
+                    help='Extra headers'
+                    )
 
 
 def main():
     args = parser.parse_args()
     if args.http_code is None:
         args.http_code = [200, 405, 404]
+    args.headers = {k: v for (k, v) in args.headers}
     do(args)
 
 
@@ -63,7 +69,7 @@ def do(settings):
     @given(data())
     @hsettings(max_examples=settings.iterations)
     def swagger_fuzzer(data):
-        request = get_request(data, SPEC, SPEC_HOST)
+        request = get_request(data, SPEC, SPEC_HOST, settings=settings)
         note("Curl command: {}".format(to_curl_command(request)))
 
         result = s.send(request)

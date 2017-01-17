@@ -2,6 +2,7 @@
 """
 import json
 import hypothesis.strategies as st
+from copy import copy
 from hypothesis.extra.datetime import datetimes
 from requests import Request
 from furl import furl
@@ -51,7 +52,7 @@ def _get_filtered_parameter(path_item, in_, spec):
     return CustomTransformation(get_ref, spec).transform(non_converted_params)
 
 
-def get_request(data, spec, spec_host):
+def get_request(data, spec, spec_host, settings):
     endpoint_path = data.draw(st.sampled_from(spec['paths'].keys()))
     endpoint = spec['paths'][endpoint_path]
 
@@ -73,7 +74,7 @@ def get_request(data, spec, spec_host):
     valid_request_body_format = get_item_path_acceptable_format(endpoint, spec)
 
     request_data = None
-    request_headers = {}
+    request_headers = copy(settings.headers)
 
     if body_args:
         # no_body_format_declaration(body_args, valid_request_body_format, endpoint)
