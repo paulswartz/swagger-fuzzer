@@ -70,7 +70,10 @@ def do(settings):
     validator = get_validator(SPEC, settings.spec_url)
     validator.validate_spec(SPEC, settings.spec_url)
 
-    SPEC_HOST = urlunparse(list(PARSED_HOST)[:2] + [SPEC['basePath']] + ['', '', ''])
+    base_path = SPEC['basePath']
+    if not base_path.endswith('/'):
+        base_path += '/'
+    SPEC_HOST = urlunparse(list(PARSED_HOST)[:2] + [base_path] + ['', '', ''])
 
     s = requests.Session()
 
