@@ -168,7 +168,10 @@ class CustomTransformation(object):
             parameter_type = obj.get('format', obj.get('type'))
             parameter_schema = obj.get('schema')
             parameter_ref = obj.get('$ref')
+            parameter_enum = obj.get('enum')
 
+            if parameter_enum:
+                return st.sampled_from(parameter_enum)
             if parameter_type in SWAGGER_FORMAT_MAPPING:
                 return SWAGGER_FORMAT_MAPPING[parameter_type]
             elif parameter_ref:
