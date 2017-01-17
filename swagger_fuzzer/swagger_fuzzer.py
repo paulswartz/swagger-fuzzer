@@ -2,6 +2,7 @@
 """ Swagger Fuzzer helps you do fuzzing testing on your Swagger APIs.
 """
 import argparse
+import json
 from urllib.parse import urlparse, urlunparse
 
 import requests
@@ -25,6 +26,9 @@ parser.add_argument('-H', '--header', dest='headers',
                     action='append', type=lambda s: s.split(':', 1),
                     default=[],
                     help='Extra headers'
+                    )
+parser.add_argument('-r', '--real-spec-url',
+                    help='Real Swagger spec url'
                     )
 
 
@@ -55,12 +59,16 @@ def to_curl_command(request):
 def do(settings):
     PARSED_HOST = urlparse(settings.spec_url)
 
-    swagger_spec = requests.get(settings.spec_url)
-    swagger_spec.raise_for_status()
-    SPEC = swagger_spec.json()
+    if settings.real_spec_url and not'://' in settings.real_spec_url:
+        swagger_spec = open(settings.real_spec_url).read()
+        SPEC = json.loads(swagger_spec)
+    else:
+        swagger_spec = requests.get(settings.real_spec_url or settings.spec_url, headers=settings.headers)
+        swagger_spec.raise_for_status()
+        SPEC = swagger_spec.json()
 
     validator = get_validator(SPEC, settings.spec_url)
-    validator.validate_spec(swagger_spec.json(), settings.spec_url)
+    validator.validate_spec(SPEC, settings.spec_url)
 
     SPEC_HOST = urlunparse(list(PARSED_HOST)[:2] + [SPEC['basePath']] + ['', '', ''])
 
