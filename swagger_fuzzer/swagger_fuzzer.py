@@ -6,7 +6,7 @@ import json
 from urllib.parse import urlparse, urlunparse
 
 import requests
-from hypothesis import given, settings as hsettings, note
+from hypothesis import given, settings as hsettings, note, unlimited, HealthCheck
 from swagger_spec_validator.util import get_validator
 
 from .strategy import data
@@ -70,7 +70,7 @@ def do(settings):
     validator = get_validator(SPEC, settings.spec_url)
     validator.validate_spec(SPEC, settings.spec_url)
 
-    base_path = SPEC['basePath']
+    base_path = SPEC.get('basePath', '/')
     if not base_path.endswith('/'):
         base_path += '/'
     SPEC_HOST = urlunparse(list(PARSED_HOST)[:2] + [base_path] + ['', '', ''])
@@ -78,7 +78,11 @@ def do(settings):
     s = requests.Session()
 
     @given(data())
-    @hsettings(max_examples=settings.iterations)
+    @hsettings(
+        max_examples=settings.iterations,
+        timeout=unlimited,
+        deadline=None,
+        suppress_health_check=[HealthCheck.hung_test])
     def swagger_fuzzer(data):
         request = get_request(data, SPEC, SPEC_HOST, settings=settings)
         note("Curl command: {}".format(to_curl_command(request)))

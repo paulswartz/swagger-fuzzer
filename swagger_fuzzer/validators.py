@@ -51,8 +51,11 @@ def valid_output_mime(spec, request, response, settings):
         valids = local_valids
     else:
         valids = global_valids
+    try:
+        content_type = response.headers['Content-Type']
+    except KeyError:
+        raise AssertionError("Response on {!r} did not return content type".format(request.url))
 
-    content_type = response.headers['Content-Type']
     p = content_type.find(';')
     if p >= 0:
         content_type = content_type[:p]

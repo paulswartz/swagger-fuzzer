@@ -7,15 +7,18 @@ from hypothesis.extra.datetime import datetimes
 from requests import Request
 from furl import furl
 from hypothesis import assume
+from urllib.parse import quote
 
 from .utils import CustomJsonEncoder
 
 SWAGGER_FORMAT_MAPPING = {
     'int64': st.integers(),
-    'string': st.text(),
     'integer': st.integers(),
     'int32': st.integers(),
+    'number': st.one_of(st.integers(), st.floats()),
     'date-time': datetimes(),
+    'date': st.dates(),
+    'time': st.times(),
     'boolean': st.booleans(),
 }
 
@@ -53,10 +56,11 @@ def _get_filtered_parameter(path_item, in_, common_parameters, spec):
 
 
 def get_request(data, spec, spec_host, settings):
-    endpoint_path = data.draw(st.sampled_from(spec['paths'].keys()))
+    endpoints = sorted(spec['paths'].keys())
+    endpoint_path = data.draw(st.sampled_from(endpoints))
     endpoint = spec['paths'][endpoint_path]
 
-    methods = set(endpoint.keys())
+    methods = sorted(set(endpoint.keys()))
     if 'parameters' in methods:
         methods.remove('parameters')
         common_parameters = endpoint['parameters']
@@ -102,12 +106,14 @@ def get_request(data, spec, spec_host, settings):
         else:
             raise Exception(request_body_format)
 
+    # encode the path values
+    path_args = {k: quote(v, safe="") for (k, v) in path_args.items()}
+
     endpoint_url = endpoint_path.format(**path_args)
     assume('\x00' not in endpoint_url)
 
     # Generate request
-    URL = furl(spec_host)
-    URL = URL.join(endpoint_url.lstrip('/'))
+    URL = furl(spec_host).add(path=endpoint_url.lstrip('/'))
 
     if query_args:
         URL = URL.add(args=query_args)
@@ -176,6 +182,11 @@ class CustomTransformation(object):
                 return SWAGGER_FORMAT_MAPPING[parameter_type]
             elif parameter_ref:
                 return self.transform(self.get_ref(parameter_ref, self.spec))
+            elif parameter_type == 'string':
+                if 'pattern' in obj:
+                    return st.from_regex(obj['pattern'])
+                else:
+                    return st.text()
             elif parameter_type == 'array':
                 if obj['items'].get('enum'):
                     return st.lists(elements=st.sampled_from(obj['items']['enum']))
